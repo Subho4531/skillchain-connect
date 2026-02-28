@@ -1,73 +1,162 @@
-# Welcome to your Lovable project
+# CredChain - Decentralized Academic Credential Issuer
 
-## Project info
+Production-ready MVP for issuing real NFT credentials on Algorand blockchain.
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+## Features
 
-## How can I edit this code?
+✅ **Real Blockchain Integration**
+- Real ASA NFT minting on Algorand TestNet
+- Transaction confirmation before database writes
+- On-chain admin verification via smart contract
 
-There are several ways of editing your application.
+✅ **IPFS Storage**
+- Documents uploaded to IPFS via Pinata
+- SHA256 hashing for integrity verification
+- Permanent decentralized storage
 
-**Use Lovable**
+✅ **Role-Based Access**
+- Platform Admin: Deploy contract, view system status
+- College Admin: Approve/reject requests, mint NFTs
+- Student: Upload requests, view issued NFTs
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
+✅ **Security**
+- Server-side role detection
+- On-chain admin verification
+- No client-side trust
+- Duplicate prevention
 
-Changes made via Lovable will be committed automatically to this repo.
+## Tech Stack
 
-**Use your preferred IDE**
+**Frontend**: Next.js 14, TypeScript, Tailwind CSS, TanStack Query, @txnlab/use-wallet
+**Backend**: Node.js, Express, TypeScript, algosdk
+**Blockchain**: Algorand TestNet, Beaker smart contracts
+**Storage**: IPFS (Pinata), Supabase PostgreSQL
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+## Quick Start
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+### 1. Install Dependencies
 
-Follow these steps:
+```bash
+npm install
+cd backend && npm install && cd ..
+cd contracts && pip install -r requirements.txt && cd ..
+```
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+### 2. Configure Wallets
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+Create two Algorand wallets and fund with TestNet ALGO:
+https://bank.testnet.algorand.network/
 
-# Step 3: Install the necessary dependencies.
-npm i
+Update `contracts/.env` and `backend/.env` with your wallet addresses and mnemonics.
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
+### 3. Deploy Smart Contract
+
+```bash
+cd contracts
+python deploy.py
+```
+
+Copy the App ID and update `backend/.env`:
+```
+ALGORAND_APP_ID=YOUR_APP_ID
+```
+
+### 4. Setup Database
+
+Run `supabase/migrations/001_credchain_schema.sql` in your Supabase project.
+
+### 5. Start Services
+
+```bash
+# Terminal 1 - Backend
+cd backend && npm run dev
+
+# Terminal 2 - Frontend
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+Visit http://localhost:3000
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+## System Workflow
 
-**Use GitHub Codespaces**
+1. **Student** uploads credential request (PDF + metadata)
+   - Document hashed (SHA256) and uploaded to IPFS
+   - Request stored with status PENDING
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+2. **College Admin** reviews request
+   - Backend verifies admin wallet against smart contract
+   - Admin approves or rejects
 
-## What technologies are used for this project?
+3. **NFT Minting** (on approval)
+   - Metadata JSON created and uploaded to IPFS
+   - Metadata hashed (SHA256)
+   - Real ASA NFT created with metadata hash
+   - Transaction confirmed on-chain
+   - NFT transferred to student wallet
+   - Only after confirmation: database updated
 
-This project is built with:
+4. **Student** receives NFT
+   - Asset ID visible in dashboard
+   - Viewable on AlgoExplorer
+   - Permanent proof of credential
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+## Project Structure
 
-## How can I deploy this project?
+```
+credchain/
+├── contracts/              # Beaker smart contracts
+│   ├── admin_registry.py  # On-chain admin registry
+│   └── deploy.py          # Deployment script
+├── backend/               # Express backend
+│   └── src/
+│       ├── config/        # Configuration
+│       ├── middleware/    # Auth middleware
+│       ├── routes/        # API routes
+│       └── services/      # Business logic
+├── src/                   # Next.js frontend
+│   ├── app/              # Pages
+│   │   ├── admin/        # Admin dashboards
+│   │   └── student/      # Student portal
+│   ├── components/       # React components
+│   └── lib/              # API client
+└── supabase/             # Database migrations
+```
 
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
+## API Endpoints
 
-## Can I connect a custom domain to my Lovable project?
+- `GET /api/auth/role` - Get user role
+- `POST /api/credentials/upload` - Upload credential request
+- `GET /api/credentials/my-requests` - Get student requests
+- `GET /api/credentials/pending` - Get pending requests (admin)
+- `POST /api/credentials/approve/:id` - Approve and mint NFT
+- `POST /api/credentials/reject/:id` - Reject request
+- `GET /api/admin/contract-admins` - Get on-chain admin addresses
 
-Yes, you can!
+## Security Features
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+- Server-side role detection (never trust frontend)
+- On-chain admin verification before approval
+- Transaction confirmation before database writes
+- Duplicate credential ID prevention
+- SHA256 hashing for document integrity
+- IPFS content addressing
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+## Environment Variables
+
+See `.env.local`, `backend/.env`, and `contracts/.env` for required configuration.
+
+## Production Deployment
+
+1. Deploy smart contract to MainNet
+2. Update all environment variables
+3. Deploy backend to Railway/Render/Heroku
+4. Deploy frontend to Vercel/Netlify
+5. Ensure college admin wallet has sufficient ALGO for fees
+
+## License
+
+MIT
+
+## Support
+
+For issues or questions, see DEPLOYMENT.md for detailed instructions.
