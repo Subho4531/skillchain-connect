@@ -1,6 +1,6 @@
 'use client';
 
-import { useWallet } from '@txnlab/use-wallet';
+import { useWalletContext } from '@/contexts/WalletContext';
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { WalletConnect } from '@/components/WalletConnect';
@@ -8,7 +8,7 @@ import { getContractAdmins } from '@/lib/api';
 import { Shield, CheckCircle } from 'lucide-react';
 
 export default function PlatformAdminPage() {
-  const { activeAccount } = useWallet();
+  const { activeAccount } = useWalletContext();
 
   const { data: admins, isLoading } = useQuery({
     queryKey: ['contract-admins', activeAccount?.address],

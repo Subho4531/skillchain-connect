@@ -1,6 +1,6 @@
 'use client';
 
-import { useWallet } from '@txnlab/use-wallet';
+import { useWalletContext } from '@/contexts/WalletContext';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -12,7 +12,7 @@ import { useState } from 'react';
 import { Input } from '@/components/ui/input';
 
 export default function CollegeAdminPage() {
-  const { activeAccount } = useWallet();
+  const { activeAccount } = useWalletContext();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [rejectingId, setRejectingId] = useState<string | null>(null);

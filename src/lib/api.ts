@@ -1,16 +1,14 @@
 const API_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:4000';
 
 async function apiRequest(endpoint: string, options: RequestInit = {}, wallet?: string) {
-  const headers: HeadersInit = {
-    ...options.headers,
-  };
+  const headers = new Headers(options.headers);
 
   if (wallet) {
-    headers['x-wallet-address'] = wallet;
+    headers.set('x-wallet-address', wallet);
   }
 
   if (options.body && typeof options.body === 'string') {
-    headers['Content-Type'] = 'application/json';
+    headers.set('Content-Type', 'application/json');
   }
 
   const response = await fetch(`${API_URL}${endpoint}`, {

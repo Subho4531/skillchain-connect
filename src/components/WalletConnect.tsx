@@ -9,22 +9,13 @@ import {
   DropdownMenuTrigger,
 } from './ui/dropdown-menu';
 import { Wallet, LogOut } from 'lucide-react';
-import { useEffect } from 'react';
 
 export function WalletConnect() {
-  const { activeAddress, isConnected, connectWallet, disconnectWallet, providers } = useWalletContext();
+  const { activeAddress, isConnected, connectWallet, disconnectWallet } = useWalletContext();
 
-  useEffect(() => {
-    console.log('WalletConnect - Providers:', providers);
-    console.log('WalletConnect - Active Address:', activeAddress);
-    console.log('WalletConnect - Is Connected:', isConnected);
-  }, [providers, activeAddress, isConnected]);
-
-  const handleConnect = async (providerId: string) => {
-    console.log('Attempting to connect to:', providerId);
+  const handleConnect = async () => {
     try {
-      await connectWallet(providerId);
-      console.log('Connected successfully!');
+      await connectWallet();
     } catch (error) {
       console.error('Failed to connect:', error);
     }
@@ -58,30 +49,12 @@ export function WalletConnect() {
   }
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button className="gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700">
-          <Wallet className="h-4 w-4" />
-          Connect Wallet
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        {providers && providers.length > 0 ? (
-          providers.map((provider) => (
-            <DropdownMenuItem
-              key={provider.metadata.id}
-              onClick={() => handleConnect(provider.metadata.id)}
-              className="cursor-pointer"
-            >
-              {provider.metadata.name}
-            </DropdownMenuItem>
-          ))
-        ) : (
-          <DropdownMenuItem disabled>
-            Loading wallets...
-          </DropdownMenuItem>
-        )}
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <Button
+      onClick={handleConnect}
+      className="gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
+    >
+      <Wallet className="h-4 w-4" />
+      Connect Wallet
+    </Button>
   );
 }

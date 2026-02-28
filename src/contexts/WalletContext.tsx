@@ -1,8 +1,13 @@
 'use client';
 
 import React, { createContext, useContext, useEffect, useState, useCallback, useMemo } from 'react';
-import { useWallet, WalletAccount } from '@txnlab/use-wallet';
 import { Transaction } from 'algosdk';
+import LuteConnect from '@/lib/lute-connect';
+
+export interface WalletAccount {
+  name: string;
+  address: string;
+}
 
 interface WalletContextType {
   // Wallet state
@@ -10,126 +15,75 @@ interface WalletContextType {
   activeAddress: string | null;
   isConnected: boolean;
   walletName: string | null;
-  
+
   // Wallet actions
-  connectWallet: (providerId: string) => Promise<void>;
+  connectWallet: () => Promise<void>;
   disconnectWallet: () => Promise<void>;
   reconnectWallet: () => Promise<void>;
-  
+
   // Transaction signing
   signTransactions: (txnGroup: Transaction[], indexesToSign?: number[]) => Promise<Uint8Array[]>;
   transactionSigner: (txnGroup: Transaction[], indexesToSign: number[]) => Promise<Uint8Array[]>;
-  
-  // Providers
+
+  // Providers (empty since we only use Lute directly now)
   providers: any[];
 }
 
 const WalletContext = createContext<WalletContextType | undefined>(undefined);
 
+const luteConnect = new LuteConnect("SkillchainConnect");
+const TESTNET_GENESIS_ID = "testnet-v1.0";
+
 export function WalletProvider({ children }: { children: React.ReactNode }) {
-  const { providers, activeAccount } = useWallet();
+  const [activeAccount, setActiveAccount] = useState<WalletAccount | null>(null);
   const [activeAddress, setActiveAddress] = useState<string | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [walletName, setWalletName] = useState<string | null>(null);
 
   useEffect(() => {
-    console.log('WalletProvider - providers from useWallet:', providers);
-    console.log('WalletProvider - activeAccount:', activeAccount);
-  }, [providers, activeAccount]);
-
-  // Update active address when account changes
-  useEffect(() => {
-    if (activeAccount) {
-      setActiveAddress(activeAccount.address);
+    const savedAddress = localStorage.getItem('luteWalletAddress');
+    if (savedAddress) {
+      setActiveAddress(savedAddress);
+      setActiveAccount({ name: 'Lute', address: savedAddress });
       setIsConnected(true);
-      
-      // Get wallet name from active provider
-      const activeProvider = providers?.find((p) => p.isActive);
-      if (activeProvider) {
-        setWalletName(activeProvider.metadata.name);
-        // Store wallet info in localStorage for reconnection
-        localStorage.setItem('walletConnected', 'true');
-        localStorage.setItem('lastWalletId', activeProvider.metadata.id);
-        localStorage.setItem('lastWalletAddress', activeAccount.address);
-      }
-    } else {
-      setActiveAddress(null);
-      setIsConnected(false);
-      setWalletName(null);
-      localStorage.removeItem('walletConnected');
-      localStorage.removeItem('lastWalletId');
-      localStorage.removeItem('lastWalletAddress');
+      setWalletName('Lute');
     }
-  }, [activeAccount, providers]);
-
-  // Auto-reconnect on mount
-  const reconnectWallet = useCallback(async () => {
-    const wasConnected = localStorage.getItem('walletConnected');
-    const lastWalletId = localStorage.getItem('lastWalletId');
-    
-    if (wasConnected && lastWalletId && !activeAccount) {
-      console.log('Attempting to reconnect wallet:', lastWalletId);
-      try {
-        const provider = providers?.find((p) => p.metadata.id === lastWalletId);
-        if (provider) {
-          await provider.connect();
-        }
-      } catch (error) {
-        console.error('Failed to reconnect wallet:', error);
-        localStorage.removeItem('walletConnected');
-        localStorage.removeItem('lastWalletId');
-        localStorage.removeItem('lastWalletAddress');
-      }
-    }
-  }, [activeAccount, providers]);
-
-  useEffect(() => {
-    reconnectWallet();
   }, []);
 
-  const connectWallet = useCallback(async (providerId: string) => {
+  const connectWallet = useCallback(async () => {
     try {
-      const provider = providers?.find((p) => p.metadata.id === providerId);
-      if (provider) {
-        await provider.connect();
-      } else {
-        throw new Error(`Provider ${providerId} not found`);
+      const addrs = await luteConnect.connect(TESTNET_GENESIS_ID);
+      if (addrs && addrs.length > 0) {
+        const address = addrs[0];
+        setActiveAddress(address);
+        setActiveAccount({ name: 'Lute', address });
+        setIsConnected(true);
+        setWalletName('Lute');
+        localStorage.setItem('luteWalletAddress', address);
       }
     } catch (error) {
-      console.error('Failed to connect wallet:', error);
+      console.error('Failed to connect Lute wallet:', error);
       throw error;
     }
-  }, [providers]);
+  }, []);
 
   const disconnectWallet = useCallback(async () => {
-    try {
-      const provider = providers?.find((p) => p.isActive);
-      if (provider) {
-        await provider.disconnect();
-      }
-      
-      // Clear localStorage
-      localStorage.removeItem('walletConnected');
-      localStorage.removeItem('lastWalletId');
-      localStorage.removeItem('lastWalletAddress');
-    } catch (error) {
-      console.error('Failed to disconnect wallet:', error);
-      throw error;
-    }
-  }, [providers]);
+    setActiveAddress(null);
+    setActiveAccount(null);
+    setIsConnected(false);
+    setWalletName(null);
+    localStorage.removeItem('luteWalletAddress');
+  }, []);
 
-  // Transaction signer compatible with AlgoKit TransactionSigner type
+  const reconnectWallet = useCallback(async () => {
+    // Handled by the initialization useEffect
+  }, []);
+
   const transactionSigner = useCallback(async (
     txnGroup: Transaction[],
     indexesToSign: number[]
   ): Promise<Uint8Array[]> => {
-    const provider = providers?.find((p) => p.isActive);
-    
-    if (!provider) {
-      throw new Error('No active wallet provider');
-    }
-
-    if (!activeAccount) {
+    if (!activeAddress) {
       throw new Error('No active account');
     }
 
@@ -139,27 +93,31 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
         const shouldSign = indexesToSign.includes(idx);
         return {
           txn: Buffer.from(txn.toByte()).toString('base64'),
-          signers: shouldSign ? [activeAccount.address] : [],
+          signers: shouldSign ? [activeAddress] : [],
         };
       });
 
-      // Sign with the provider
-      const signedTxns = await provider.signTransactions(txnsToSign);
+      // Sign with Lute
+      const signedTxns = await luteConnect.signTxns(txnsToSign);
 
-      // Convert back to Uint8Array
-      return signedTxns.map((signedTxn) => {
-        if (!signedTxn) {
-          throw new Error('Transaction signing failed');
+      // Convert back to Uint8Array 
+      // AlgoKit TransactionSigner returns an array containing only the signed transactions
+      const result: Uint8Array[] = [];
+      signedTxns.forEach((signedTxn, idx) => {
+        if (indexesToSign.includes(idx)) {
+          if (!signedTxn) {
+            throw new Error(`Transaction at index ${idx} signing failed (returned null)`);
+          }
+          result.push(new Uint8Array(signedTxn));
         }
-        return new Uint8Array(Buffer.from(signedTxn, 'base64'));
       });
+      return result;
     } catch (error) {
       console.error('Failed to sign transactions:', error);
       throw error;
     }
-  }, [providers, activeAccount]);
+  }, [activeAddress]);
 
-  // Alias for compatibility
   const signTransactions = useCallback(async (
     txnGroup: Transaction[],
     indexesToSign?: number[]
@@ -167,15 +125,6 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     const indexes = indexesToSign || txnGroup.map((_, idx) => idx);
     return transactionSigner(txnGroup, indexes);
   }, [transactionSigner]);
-
-  // Create TransactionSignerAccount compatible object
-  const transactionSignerAccount = useMemo(() => {
-    if (!activeAddress) return null;
-    return {
-      addr: activeAddress,
-      signer: transactionSigner,
-    };
-  }, [activeAddress, transactionSigner]);
 
   const value: WalletContextType = {
     activeAccount,
@@ -187,7 +136,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     reconnectWallet,
     signTransactions,
     transactionSigner,
-    providers: providers || [],
+    providers: [],
   };
 
   return (
